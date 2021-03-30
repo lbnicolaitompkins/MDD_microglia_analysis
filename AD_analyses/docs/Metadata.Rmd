@@ -1,21 +1,42 @@
 ---
 title: "Metadata"
+author: "Lisa"
 output:
-  pdf_document: default
-  html_document: default
+rmarkdown::html_document:
+   theme: united
+   highlight: tango
+   code_folding: hide
+   toc: true
+   toc_float: true
+   df_print: paged
+   smooth_scroll: true
+   number_sections: false
+   self_contained: true
 ---
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
 library(ProjectTemplate)
 load.project()
 ```
 
+```{r packages, echo=FALSE, message=FALSE, results='hide'}
+library(UpSetR)
+library(readxl)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(RColorBrewer)
+```
+
 ## Preparing metadata 
-### Change to correct data format
+# Change to correct data format
 
 ```{r changing format}
-metadata$Diagnosis <- as.factor (metadata$Diagnosis)
-metadata$Main_diagnosis <- as.factor (metadata$Main_diagnosis)
+metadata <- metadata_314s_20210330.Blad1
+metadata$Diagnosis <- as.factor(metadata$Diagnosis)
+metadata$Main_diagnosis <- as.factor(metadata$Main_diagnosis)
 ```
 
 ## Number of unique donors
@@ -34,8 +55,20 @@ metadata_AD <- metadata[metadata[,"Antidepressant_90days"]== "Yes",]
 length(unique(metadata_AD$Donor_id))
 
 ```
-## Number of Antidepressant and Antipsychotic users 
+## Number of Patients using both Antidepressants and Antipsychotics 
 ```{r, echo=TRUE}
-length(metadata_AD[metadata_AD[, "Antipsychotica_90days"]== "Yes",])
+metadata_ADAP <- metadata_AD[metadata_AD[, "Antipsychotica_90days"]== "Yes",]
+length(unique(metadata_ADAP$Donor_id))
+unique(metadata_ADAP$Donor_id)
 ```
+## Number of patients per antidepressant type 
+```{r, echo=TRUE}
+donor_AD = unique(metadata_AD[,c("Donor_id", "Antidepressant_type", "Antidepressant_type2")])
+as.data.frame(t(as.matrix(unclass(table(donor_AD$Antidepressant_type, useNA = "ifany")  )))) %>%
+kable(row.names = F) %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+## Upset plot 
 
