@@ -1,0 +1,41 @@
+---
+title: "Metadata"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(ProjectTemplate)
+load.project()
+```
+
+## Preparing metadata 
+### Change to correct data format
+
+```{r changing format}
+metadata$Diagnosis <- as.factor (metadata$Diagnosis)
+metadata$Main_diagnosis <- as.factor (metadata$Main_diagnosis)
+```
+
+## Number of unique donors
+
+```{r unique donors, echo=TRUE}
+#set rownames to Donor_tissue
+row.names(metadata) <- metadata$Donor_tissue
+length(unique(metadata$Donor_id)) 
+```
+
+## Number of Antidepressant users 
+
+```{r antidressant users, echo=TRUE}
+#create new dataframe with only AD users
+metadata_AD <- metadata[metadata[,"Antidepressant_90days"]== "Yes",] 
+length(unique(metadata_AD$Donor_id))
+
+```
+## Number of Antidepressant and Antipsychotic users 
+```{r, echo=TRUE}
+length(metadata_AD[metadata_AD[, "Antipsychotica_90days"]== "Yes",])
+```
+
