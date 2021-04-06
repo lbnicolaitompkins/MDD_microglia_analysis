@@ -56,8 +56,15 @@ length(unique(metadata$Donor_id))
 #create new dataframe with only AD users
 metadata_AD <- metadata[metadata[,"Antidepressant_90days"]== "YES",] 
 length(unique(metadata_AD$Donor_id))
-
 ```
+## Number of Antipsychotics users 
+```{r}
+metadata_AP <- metadata[metadata[,"Antipsychotica_90days"]== "YES",] 
+length(unique(metadata_AP$Donor_id))
+```
+
+
+
 ## Number of Patients using both Antidepressants and Antipsychotics 
 ```{r, echo=TRUE}
 metadata_ADAP <- metadata_AD[metadata_AD[, "Antipsychotica_90days"]== "YES",]
@@ -222,4 +229,130 @@ as.data.frame(table(metadata[,c("Main_diagnosis", "Tissue")]), useNA = "ifany") 
  kable(row.names = F) %>%
  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 ```
+
+#Age 
+Maximum minimum and mean age > all donors  
+```{r, echo=TRUE}
+ageByDonor = unique(metadata[,c("Donor_id", "age", "sex")])
+#createDT(ageByDonor)
+max(ageByDonor$age, na.rm = T)
+
+min(ageByDonor$age, na.rm = T)
+
+mean(ageByDonor$age, na.rm = T)
+```
+Maximum minimum and mean age > AD users  
+```{r, echo=TRUE}
+ageAD = unique(metadata_AD[,c("Donor_id", "age", "sex")])
+
+max(ageAD$age, na.rm = T)
+
+min(ageAD$age, na.rm = T)
+
+mean(ageAD$age, na.rm = T)
+```
+Maximum minimum and mean age > AP users 
+```{r, echo=TRUE}
+ageAP = unique(metadata_AP[,c("Donor_id", "age", "sex")])
+
+max(ageAP$age, na.rm = T)
+
+min(ageAP$age, na.rm = T)
+
+mean(ageAP$age, na.rm = T)
+```
+Distribution plot age/sex by donor
+```{r}
+mean_f = mean(ageByDonor[ageByDonor$sex == "f", "age"], na.rm = T)
+mean_m = mean(ageByDonor[ageByDonor$sex == "m", "age"], na.rm = T)
+ggplot(ageByDonor, aes(x=age, fill=sex)) +
+  geom_histogram(bins = 25, colour='black', position = "stack") +
+  labs(x="Age", y="Donors") +
+  scale_y_continuous(breaks = (1:20)) +
+  scale_x_continuous(breaks=seq(20,120,10)) + 
+  geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
+  geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
+  theme_classic()
+```
+
+Distribution plot age/sex by donor using AD 
+```{r, echo=TRUE}
+mean_f = mean(ageAD[ageAD$sex == "f", "age"], na.rm = T)
+mean_m = mean(ageAD[ageAD$sex == "m", "age"], na.rm = T)
+ggplot(ageAD, aes(x=age, fill=sex)) +
+  geom_histogram(bins = 25, colour='black', position = "stack") +
+  labs(x="Age", y="Donors") +
+  scale_y_continuous(breaks = (1:20)) +
+  scale_x_continuous(breaks=seq(20,120,10)) + 
+  geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
+  geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
+  theme_classic()
+```
+
+Distribution plot age/sex by donor using AP
+```{r, echo=TRUE}
+mean_f = mean(ageAP[ageAD$sex == "f", "age"], na.rm = T)
+mean_m = mean(ageAP[ageAD$sex == "m", "age"], na.rm = T)
+ggplot(ageAP, aes(x=age, fill=sex)) +
+  geom_histogram(bins = 25, colour='black', position = "stack") +
+  labs(x="Age", y="Donors") +
+  scale_y_continuous(breaks = (1:20)) +
+  scale_x_continuous(breaks=seq(20,120,10)) + 
+  geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
+  geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
+  theme_classic()
+```
+
+Number of Euthanasia 
+```{r, echo=TRUE}
+Euthanasia_donor <- metadata %>% 
+   filter(Cause_of_death_categories == "Euthanasia")
+#number of donors 
+length(unique(Euthanasia_donor$Donor_id))
+#number of samples 
+length(Euthanasia_donor$Donor_id)
+```
+
+Number of donors with Antidepressiva and Euthanasia
+```{r, echo=TRUE}
+as.data.frame(t(as.matrix(unclass(table(Euthanasia_donor$Antidepressant_90days, useNA = "ifany")  )))) %>%
+kable(row.names = F) %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+Number of donors with Antipsychotica and Euthanasia 
+```{r, echo=TRUE}
+as.data.frame(t(as.matrix(unclass(table(Euthanasia_donor$Antipsychotica_90days, useNA = "ifany")  )))) %>%
+kable(row.names = F) %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+```
+
+Euthanasia with both AP and AD 
+```{r, echo=TRUE}
+Euthanasia_ADAP <- metadata_ADAP %>% 
+   filter(Cause_of_death_categories == "Euthanasia")
+#number of donors 
+length(unique(Euthanasia_ADAP$Donor_id))
+#number of samples 
+length(Euthanasia_ADAP$Donor_id)
+
+
+Euthanasia_ADorAP <- Euthanasia_donor %>% 
+   filter(Antipsychotica_atypical == "YES" | Antidepressant_90days == "YES")
+length(unique(Euthanasia_ADorAP$Donor_id))
+
+```
+
+#Euthanasia with AP or AD 
+```{r, echo=TRUE}
+Euthanasia_ADorAP <- Euthanasia_donor %>% 
+   filter(Antipsychotica_atypical == "YES" | Antidepressant_90days == "YES")
+#number of donors 
+length(unique(Euthanasia_ADorAP$Donor_id))
+#number of samples 
+length(Euthanasia_ADorAP$Donor_id)
+
+```
+
 
