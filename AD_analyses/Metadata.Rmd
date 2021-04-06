@@ -32,9 +32,10 @@ library(tidyverse)
 ```
 
 # Preparing metadata 
-## Change to correct data format
 
-```{r changing format}
+
+## Change to correct data format
+```{r changing format, echo=TRUE}
 metadata <- X202104021_metadata_tidy.Blad1
 metadata$Diagnosis <- as.factor(metadata$Diagnosis)
 metadata$Main_diagnosis <- as.factor(metadata$Main_diagnosis)
@@ -43,7 +44,6 @@ metadata$Region <- as.factor(metadata$Tissue)
 ```
 
 ## Number of unique donors
-
 ```{r unique donors, echo=TRUE}
 #set rownames to Donor_tissue
 # row.names(metadata) <- metadata$Donor_tissue
@@ -79,16 +79,147 @@ kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive
 ```
 
 ## Number of samples per antidepressant type 
-```{r}
+```{r, echo=TRUE}
 as.data.frame(t(as.matrix(unclass(table(metadata$Antidepressant_90days, useNA = "ifany")  )))) %>%
 kable(row.names = F) %>%
 kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 
 ```
 
+```{r, echo=TRUE}
+donor_1AD = unique(metadata[,c("Donor_id", "Antidepressant_1")])
+pie_table = table(donor_1AD$Antidepressant_1)
+myPalette <- brewer.pal(10, "Set3") 
+pie(pie_table, border = "white", col = myPalette) +
+  coord_polar("y", start = 0) 
+```
 
 
 
+```{r, results='hide'}
+# Main diagnosis by donor 
+Main_diagnosisByDonor = unique(metadata[,c("Donor_id", "Main_diagnosis")])
+table(Main_diagnosisByDonor)
+```
 
-## Upset plot 
+## Number of different main diagnoses 
+```{r, echo=TRUE}
+length(unique(metadata$Main_diagnosis))
+```
+
+Pie chart main diagnosis 
+```{r, echo=TRUE}
+pie_table = table(Main_diagnosisByDonor$Main_diagnosis)
+myPalette <- brewer.pal(10, "Set3") 
+pie(pie_table, border = "white", col = myPalette) +
+  coord_polar("y", start = 0) 
+```
+
+
+
+```{r, results='hide'}
+## table overview of antidepressant types 
+table(metadata_AD$Donor_id, metadata_AD$Antidepressant_1)
+```
+
+#create dataframe with only TCA users and vector with the donors using TCA's 
+```{r, echo=TRUE}
+ TCA <- metadata_AD %>% 
+   filter(Antidepressant_1 == "TCA")
+
+TCA_donorid <- TCA$Donor_id
+TCA_samples <- TCA$Donor_tissue
+```
+
+#repeat this for other types 
+```{r, echo=TRUE}
+ SSRI <- metadata_AD %>% 
+   filter(Antidepressant_1 == "SSRI")
+
+SSRI_donorid <- SSRI$Donor_id
+SSRI_samples <- SSRI$Donor_tissue
+
+SNRI <- metadata_AD %>% 
+   filter(Antidepressant_1 == "SNRI")
+
+SNRI_donorid <- SNRI$Donor_id
+SNRI_samples <- SNRI$Donor_tissue
+
+MAOI <- metadata_AD %>% 
+   filter(Antidepressant_1 == "MAOI")
+
+MAOI_donorid <- MAOI$Donor_id
+MAOI_samples <- MAOI$Donor_tissue
+
+Other <- metadata_AD %>% 
+   filter(Antidepressant_1 == "Other")
+
+Other_donorid <- Other$Donor_id
+Other_samples <- Other$Donor_tissue
+
+Other2 <- metadata_AD %>% 
+   filter(Antidepressant_2 == "Other")
+
+Other_donorid2 <- Other2$Donor_id
+Other_samples2 <- Other2$Donor_tissue
+```
+
+
+
+## Upset plot of AD users by donor 
+```{r, echo=TRUE}
+list_ADdonor<- list(TCA=TCA_donorid, SSRI=SSRI_donorid, SNRI=SNRI_donorid, MAOI=MAOI_donorid, Other=c(Other_donorid,Other_donorid2))
+
+upset(fromList(list_ADdonor), order.by = "freq")
+```
+
+## Upset plot of AD users by sample 
+```{r, echo=TRUE}
+list_ADsample <- list(TCA=TCA_samples, SSRI=SSRI_samples, SNRI=SNRI_samples, MAOI=MAOI_samples, Other=c(Other_samples,Other_samples2))
+
+upset(fromList(list_ADsample), order.by = "freq")
+```
+
+## create dataframes for antipsychotica users as well as vectors 
+```{r, echo=TRUE}
+Typical <- metadata %>% 
+   filter(Antipsychotica_typical == "YES")
+
+Typical_donorid <- Typical$Donor_id
+Typical_samples <- Typical$Donor_tissue
+
+Atypical <- metadata %>% 
+   filter(Antipsychotica_atypical == "YES")
+
+Atypical_donorid <- Atypical$Donor_id
+Atypical_samples <- Atypical$Donor_tissue
+```
+
+##Upset plot of donors using AD and/or AP
+```{r, echo=TRUE}
+list_ADdonor<- list(TCA=TCA_donorid, SSRI=SSRI_donorid, SNRI=SNRI_donorid, MAOI=MAOI_donorid, Other=c(Other_donorid,Other_donorid2), Atypical=Atypical_donorid, Typical=Typical_donorid)
+
+upset(fromList(list_ADdonor), order.by = "freq", nintersects = NA)
+```
+
+##Upset plot of samples using AD and/or AP
+```{r, echo=TRUE}
+list_ADAPsample <- list(TCA=TCA_samples, SSRI=SSRI_samples, SNRI=SNRI_samples, MAOI=MAOI_samples, Other=c(Other_samples,Other_samples2), Atypical=Atypical_samples, Typical=Typical_samples)
+
+upset(fromList(list_ADAPsample), order.by = "freq")
+```
+
+## Number of tissue samples in AD group 
+```{r, echo =TRUE}
+as.data.frame(t(as.matrix(unclass(table(metadata_AD$Tissue, useNA = "ifany")  )))) %>%
+kable(row.names = F) %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+## overview of all samples by main diagnosis
+```{r, echo=TRUE}
+as.data.frame(table(metadata[,c("Main_diagnosis", "Tissue")]), useNA = "ifany") %>% tidyr::spread(Tissue, Freq) %>%
+ kable(row.names = F) %>%
+ kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
 
