@@ -1,0 +1,135 @@
+---
+title: "Quality Control Analysis"
+author: "LB"
+date: "4/9/2021"
+output: html_document
+rmarkdown::html_document:
+   theme: united
+   highlight: tango
+   code_folding: hide
+   toc: true
+   toc_float: true
+   df_print: paged
+   smooth_scroll: true
+   number_sections: false
+   self_contained: true
+---
+```{r packages, echo=FALSE, message=FALSE, results='hide'}
+library(UpSetR)
+library(readxl)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(RColorBrewer)
+library(tidyverse)
+library(here)
+library(ggvenn)
+library(ggVennDiagram)
+library(factoextra)
+library(ggsci)
+library(grid)
+library(venn)
+```
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
+library(ProjectTemplate)
+load.project()
+```
+
+```{r}
+general_stats <- multiqc_general.Blad1
+general_stats$STAR_uniquely_mapped <- as.numeric(general_stats$STAR_uniquely_mapped)
+general_stats$STAR_uniquely_mapped_percent <- as.numeric(general_stats$STAR_uniquely_mapped_percent)
+general_stats$Picard_PCT_RIBOSOMAL_BASES <- as.numeric(general_stats$Picard_PCT_RIBOSOMAL_BASES)
+general_stats$Picard_PCT_MRNA_BASES <- as.numeric(general_stats$Picard_PCT_MRNA_BASES)
+general_stats$Picard_PCT_PF_READS_ALIGNED <- as.numeric(general_stats$Picard_PCT_PF_READS_ALIGNED)
+general_stats$Picard_PERCENT_DUPLICATION <- as.numeric(general_stats$Picard_PERCENT_DUPLICATION)
+# dim(general_stats)
+
+data.frame(general_stats)
+```
+##STAR: minimum of reads aligned
+```{r, echo=TRUE}
+min_aligned <- min(general_stats$STAR_uniquely_mapped, na.rm = T)
+na.omit(general_stats[general_stats$STAR_uniquely_mapped == min_aligned, c("Donor_tissue", "STAR_uniquely_mapped")])
+
+```
+
+##STAR: maximum of reads aligned
+```{r, echo=TRUE}
+max_aligned <- max(general_stats$STAR_uniquely_mapped, na.rm = T)
+na.omit(general_stats[general_stats$STAR_uniquely_mapped == max_aligned, c("Donor_tissue", "STAR_uniquely_mapped")])
+```
+##STAR: mean of reads aligned
+```{r, echo=TRUE}
+mean_aligned <- mean(general_stats$STAR_uniquely_mapped, na.rm = T)
+mean_aligned
+```
+
+## Samples with > 30% ribosomal 
+```{r, echo=TRUE}
+ribosomal_bases <- general_stats$Donor_tissue[which(general_stats$Picard_PCT_RIBOSOMAL_BASES > 30)]
+as.data.frame(ribosomal_bases)
+
+# write(ribosomal_bases, file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples_ribosome.txt", sep = "\t")
+
+```
+
+## Samples with > 20% ribosomal 
+```{r, echo=TRUE}
+ribosomal_bases <- general_stats$Donor_tissue[which(general_stats$Picard_PCT_RIBOSOMAL_BASES > 20)]
+as.data.frame(ribosomal_bases)
+
+# write(ribosomal_bases, file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples_ribosome.txt", sep = "\t")
+
+```
+
+## Samples with <10% mRNA
+```{r, echo=TRUE}
+mrna_mapping_10 <- general_stats$Donor_tissue[which(general_stats$Picard_PCT_MRNA_BASES < 10)]
+
+as.data.frame(mrna_mapping_10)
+
+
+```
+```{r}
+# write(mrna_mapping_10, file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples_mRNA_10.txt", sep = "\t")
+```
+
+##Numbere of samples 
+```{r, echo=TRUE}
+length(mrna_mapping_10)
+```
+
+## Samples with <5% mRNA
+```{r, echo=TRUE}
+mrna_mapping_5 <- general_stats$Donor_tissue[which(general_stats$Picard_PCT_MRNA_BASES < 5)]
+as.data.frame(mrna_mapping_5)
+```
+```{r}
+#write(mrna_mapping_10, file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples_mRNA_10.txt", sep = "\t")
+```
+
+```{r}
+length(mrna_mapping_5)
+```
+
+##Samples with <10M from STAR
+STAR: uniquely mapped reads in millions
+```{r, echo=TRUE}
+star_alignment_10m <- general_stats$Donor_tissue[which(general_stats$STAR_uniquely_mapped < 10000000)]
+length(star_alignment_10m)
+```
+
+##Overlap between the samples 
+```{r}
+sample_overlap <- list(rRNA_higher20per = ribosomal_bases, Coding_region = mrna_mapping_10)
+venn(sample_overlap, zcolor = pal_npg(palette = c("nrc"), alpha = 1)(2), cexil = 1.1, cexsn = 1.1)
+```
+
+### Samples with <5% coding
+

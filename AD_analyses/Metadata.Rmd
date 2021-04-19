@@ -34,7 +34,7 @@ library(tidyverse)
 # Preparing metadata 
 
 
-## Change to correct data format
+### Change to correct data format
 ```{r changing format, echo=TRUE}
 metadata <- X202104021_metadata_tidy.Blad1
 metadata$Diagnosis <- as.factor(metadata$Diagnosis)
@@ -43,21 +43,21 @@ metadata$Region <- as.factor(metadata$Tissue)
 #repeat this for AD columns?
 ```
 
-## Number of unique donors
+### Number of unique donors
 ```{r unique donors, echo=TRUE}
 #set rownames to Donor_tissue
 # row.names(metadata) <- metadata$Donor_tissue
 length(unique(metadata$Donor_id)) 
 ```
 
-## Number of Antidepressant users 
+### Number of Antidepressant users 
 
 ```{r antidressant users, echo=TRUE}
 #create new dataframe with only AD users
 metadata_AD <- metadata[metadata[,"Antidepressant_90days"]== "YES",] 
 length(unique(metadata_AD$Donor_id))
 ```
-## Number of Antipsychotics users 
+### Number of Antipsychotics users 
 ```{r}
 metadata_AP <- metadata[metadata[,"Antipsychotica_90days"]== "YES",] 
 length(unique(metadata_AP$Donor_id))
@@ -65,14 +65,14 @@ length(unique(metadata_AP$Donor_id))
 
 
 
-## Number of Patients using both Antidepressants and Antipsychotics 
+### Number of Patients using both Antidepressants and Antipsychotics 
 ```{r, echo=TRUE}
 metadata_ADAP <- metadata_AD[metadata_AD[, "Antipsychotica_90days"]== "YES",]
 length(unique(metadata_ADAP$Donor_id))
 donor_AD_AP <- unique(metadata_ADAP$Donor_id)
 ```
 
-## Number of patients per antidepressant type 
+### Number of patients per antidepressant type 
 ```{r, echo=TRUE}
 donor_AD = unique(metadata_AD[,c("Donor_id", "Antidepressant_1", "Antidepressant_2")])
 
@@ -85,7 +85,7 @@ kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive
 
 ```
 
-## Number of samples per antidepressant type 
+### Number of samples per antidepressant type 
 ```{r, echo=TRUE}
 as.data.frame(t(as.matrix(unclass(table(metadata$Antidepressant_90days, useNA = "ifany")  )))) %>%
 kable(row.names = F) %>%
@@ -106,21 +106,48 @@ pie(pie_table, border = "white", col = myPalette) +
 ```{r, results='hide'}
 # Main diagnosis by donor 
 Main_diagnosisByDonor = unique(metadata[,c("Donor_id", "Main_diagnosis")])
-table(Main_diagnosisByDonor)
+Diagnosisbydonor = unique(metadata[,c("Donor_id", "Diagnosis")])
 ```
 
-## Number of different main diagnoses 
+### Number of different main diagnoses 
 ```{r, echo=TRUE}
 length(unique(metadata$Main_diagnosis))
+length(unique(metadata$Diagnosis))
 ```
 
-Pie chart main diagnosis 
+### Pie chart main diagnosis 
 ```{r, echo=TRUE}
 pie_table = table(Main_diagnosisByDonor$Main_diagnosis)
 myPalette <- brewer.pal(10, "Set3") 
 pie(pie_table, border = "white", col = myPalette) +
   coord_polar("y", start = 0) 
+
+as.data.frame(t(as.matrix(unclass(table(Main_diagnosisByDonor$Main_diagnosis, useNA = "ifany")  )))) %>%
+kable(row.names = F) %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+
+
 ```
+
+```{r}
+
+```
+
+
+
+
+```{r, echo = T}
+as.data.frame(t(as.matrix(unclass(table(Diagnosisbydonor$Diagnosis, useNA = "ifany")  )))) %>%
+kable(row.names = F) %>%
+kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+pie_table = table(Diagnosisbydonor$Diagnosis)
+myPalette <- brewer.pal(10, "Set3") 
+pie(pie_table, border = "white", col = myPalette) +
+  coord_polar("y", start = 0) 
+```
+
 
 
 
@@ -129,7 +156,7 @@ pie(pie_table, border = "white", col = myPalette) +
 table(metadata_AD$Donor_id, metadata_AD$Antidepressant_1)
 ```
 
-#create dataframe with only TCA users and vector with the donors using TCA's 
+### create dataframe with only TCA users and vector with the donors using TCA's 
 ```{r, echo=TRUE}
  TCA <- metadata_AD %>% 
    filter(Antidepressant_1 == "TCA")
@@ -138,7 +165,7 @@ TCA_donorid <- TCA$Donor_id
 TCA_samples <- TCA$Donor_tissue
 ```
 
-#repeat this for other types 
+###repeat this for other types 
 ```{r, echo=TRUE}
  SSRI <- metadata_AD %>% 
    filter(Antidepressant_1 == "SSRI")
@@ -173,21 +200,21 @@ Other_samples2 <- Other2$Donor_tissue
 
 
 
-## Upset plot of AD users by donor 
+### Upset plot of AD users by donor 
 ```{r, echo=TRUE}
 list_ADdonor<- list(TCA=TCA_donorid, SSRI=SSRI_donorid, SNRI=SNRI_donorid, MAOI=MAOI_donorid, Other=c(Other_donorid,Other_donorid2))
 
 upset(fromList(list_ADdonor), order.by = "freq")
 ```
 
-## Upset plot of AD users by sample 
+### Upset plot of AD users by sample 
 ```{r, echo=TRUE}
 list_ADsample <- list(TCA=TCA_samples, SSRI=SSRI_samples, SNRI=SNRI_samples, MAOI=MAOI_samples, Other=c(Other_samples,Other_samples2))
 
 upset(fromList(list_ADsample), order.by = "freq")
 ```
 
-## create dataframes for antipsychotica users as well as vectors 
+### create dataframes for antipsychotica users as well as vectors 
 ```{r, echo=TRUE}
 Typical <- metadata %>% 
    filter(Antipsychotica_typical == "YES")
@@ -202,38 +229,38 @@ Atypical_donorid <- Atypical$Donor_id
 Atypical_samples <- Atypical$Donor_tissue
 ```
 
-##Upset plot of donors using AD and/or AP
+### Upset plot of donors using AD and/or AP
 ```{r, echo=TRUE}
 list_ADdonor<- list(TCA=TCA_donorid, SSRI=SSRI_donorid, SNRI=SNRI_donorid, MAOI=MAOI_donorid, Other=c(Other_donorid,Other_donorid2), Atypical=Atypical_donorid, Typical=Typical_donorid)
 
 upset(fromList(list_ADdonor), order.by = "freq", nintersects = NA)
 ```
 
-##Upset plot of samples using AD and/or AP
+### Upset plot of samples using AD and/or AP
 ```{r, echo=TRUE}
 list_ADAPsample <- list(TCA=TCA_samples, SSRI=SSRI_samples, SNRI=SNRI_samples, MAOI=MAOI_samples, Other=c(Other_samples,Other_samples2), Atypical=Atypical_samples, Typical=Typical_samples)
 
 upset(fromList(list_ADAPsample), order.by = "freq")
 ```
 
-## Number of tissue samples in AD group 
+### Number of tissue samples in AD group 
 ```{r, echo =TRUE}
 as.data.frame(t(as.matrix(unclass(table(metadata_AD$Tissue, useNA = "ifany")  )))) %>%
 kable(row.names = F) %>%
 kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 ```
 
-## overview of all samples by main diagnosis
+### overview of all samples by main diagnosis
 ```{r, echo=TRUE}
 as.data.frame(table(metadata[,c("Main_diagnosis", "Tissue")]), useNA = "ifany") %>% tidyr::spread(Tissue, Freq) %>%
  kable(row.names = F) %>%
  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 ```
 
-#Age 
-Maximum minimum and mean age > all donors  
+# Age 
+### Maximum minimum and mean age > all donors  
 ```{r, echo=TRUE}
-ageByDonor = unique(metadata[,c("Donor_id", "age", "sex")])
+ageByDonor = unique(ageADorAP[,c("Donor_id", "age", "sex", "Antidepressant_90days", "Antipsychotica_90days")])
 #createDT(ageByDonor)
 max(ageByDonor$age, na.rm = T)
 
@@ -241,9 +268,9 @@ min(ageByDonor$age, na.rm = T)
 
 mean(ageByDonor$age, na.rm = T)
 ```
-Maximum minimum and mean age > AD users  
+### Maximum minimum and mean age > AD users  
 ```{r, echo=TRUE}
-ageAD = unique(metadata_AD[,c("Donor_id", "age", "sex")])
+ageAD = unique(metadata_AD[,c("Donor_id", "age", "sex", "Antidepressant_90days", "Antipsychotica_90days")])
 
 max(ageAD$age, na.rm = T)
 
@@ -251,9 +278,9 @@ min(ageAD$age, na.rm = T)
 
 mean(ageAD$age, na.rm = T)
 ```
-Maximum minimum and mean age > AP users 
+### Maximum minimum and mean age > AP users 
 ```{r, echo=TRUE}
-ageAP = unique(metadata_AP[,c("Donor_id", "age", "sex")])
+ageAP = unique(metadata_AP[,c("Donor_id", "age", "sex", "Antidepressant_90days", "Antipsychotica_90days")])
 
 max(ageAP$age, na.rm = T)
 
@@ -261,7 +288,21 @@ min(ageAP$age, na.rm = T)
 
 mean(ageAP$age, na.rm = T)
 ```
-Distribution plot age/sex by donor
+Maximum minimum and mean age > no medication 
+```{r, echo=T}
+ageNoMed <- ageByDonor[ageByDonor[,"Antidepressant_90days"] == "NO",]
+ageNoMed <- ageNoMed[ageNoMed[, "Antipsychotica_90days"]== "NO",]
+
+max(ageNoMed$age, na.rm = T)
+
+mean(ageNoMed$age, na.rm = T)
+
+min(ageNoMed$age, na.rm = T)
+```
+
+
+
+### Distribution plot age/sex by donor
 ```{r}
 mean_f = mean(ageByDonor[ageByDonor$sex == "f", "age"], na.rm = T)
 mean_m = mean(ageByDonor[ageByDonor$sex == "m", "age"], na.rm = T)
@@ -273,9 +314,11 @@ ggplot(ageByDonor, aes(x=age, fill=sex)) +
   geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
   geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
   theme_classic()
+
+
 ```
 
-Distribution plot age/sex by donor using AD 
+### Distribution plot age/sex by donor using AD 
 ```{r, echo=TRUE}
 mean_f = mean(ageAD[ageAD$sex == "f", "age"], na.rm = T)
 mean_m = mean(ageAD[ageAD$sex == "m", "age"], na.rm = T)
@@ -289,7 +332,7 @@ ggplot(ageAD, aes(x=age, fill=sex)) +
   theme_classic()
 ```
 
-Distribution plot age/sex by donor using AP
+### Distribution plot age/sex by donor using AP
 ```{r, echo=TRUE}
 mean_f = mean(ageAP[ageAD$sex == "f", "age"], na.rm = T)
 mean_m = mean(ageAP[ageAD$sex == "m", "age"], na.rm = T)
@@ -301,9 +344,52 @@ ggplot(ageAP, aes(x=age, fill=sex)) +
   geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
   geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
   theme_classic()
+
 ```
 
-Number of Euthanasia 
+```{r, previous plot different colors, echo=FALSE}
+ggplot(ageAP, aes(x=age, fill=sex)) +
+    geom_histogram(bins = 25, colour='black', position = "stack") +
+    labs(x="Age", y="Donors") +
+    scale_y_continuous(breaks = (1:20)) +
+    scale_x_continuous(breaks=seq(20,120,10)) + 
+    geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
+    geom_vline(xintercept=mean_m, color = "#9ecae1", linetype="dashed") +
+    theme_classic() +
+    scale_fill_brewer("sex", c("f", "m"), palette = 1)
+```
+
+### Distribution plot age/sex by donor no medication 
+```{r, }
+mean_f = mean(ageNoMed[ageNoMed$sex == "f", "age"], na.rm = T)
+mean_m = mean(ageNoMed[ageNoMed$sex == "m", "age"], na.rm = T)
+ggplot(ageNoMed, aes(x=age, fill=sex)) +
+  geom_histogram(bins = 25, colour='black', position = "stack") +
+  labs(x="Age", y="Donors") +
+  scale_y_continuous(breaks = (1:20)) +
+  scale_x_continuous(breaks=seq(20,120,10)) + 
+  geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
+  geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
+  theme_classic()
+```
+
+### Distribution plot age/sex by donor AD or AP medication 
+```{r}
+mean_f = mean(ageADorAP[ageADorAP$sex == "f", "age"], na.rm = T)
+mean_m = mean(ageADorAP[ageADorAP$sex == "m", "age"], na.rm = T)
+ggplot(ageADorAP, aes(x=age, fill=sex)) +
+  geom_histogram(bins = 25, colour='black', position = "stack") +
+  labs(x="Age", y="Donors") +
+  scale_y_continuous(breaks = (1:20)) +
+  scale_x_continuous(breaks=seq(20,120,10)) + 
+  geom_vline(xintercept=mean_f, color = "red", linetype="dashed") +
+  geom_vline(xintercept=mean_m, color = "blue", linetype="dashed") +
+  theme_classic()
+
+```
+
+
+### Number of Euthanasia 
 ```{r, echo=TRUE}
 Euthanasia_donor <- metadata %>% 
    filter(Cause_of_death_categories == "Euthanasia")
@@ -313,14 +399,14 @@ length(unique(Euthanasia_donor$Donor_id))
 length(Euthanasia_donor$Donor_id)
 ```
 
-Number of donors with Antidepressiva and Euthanasia
+###Number of donors with Antidepressiva and Euthanasia
 ```{r, echo=TRUE}
 as.data.frame(t(as.matrix(unclass(table(Euthanasia_donor$Antidepressant_90days, useNA = "ifany")  )))) %>%
 kable(row.names = F) %>%
 kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 
 ```
-Number of donors with Antipsychotica and Euthanasia 
+###Number of donors with Antipsychotica and Euthanasia 
 ```{r, echo=TRUE}
 as.data.frame(t(as.matrix(unclass(table(Euthanasia_donor$Antipsychotica_90days, useNA = "ifany")  )))) %>%
 kable(row.names = F) %>%
@@ -328,7 +414,7 @@ kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive
 
 ```
 
-Euthanasia with both AP and AD 
+###Euthanasia with both AP and AD 
 ```{r, echo=TRUE}
 Euthanasia_ADAP <- metadata_ADAP %>% 
    filter(Cause_of_death_categories == "Euthanasia")
@@ -344,7 +430,7 @@ length(unique(Euthanasia_ADorAP$Donor_id))
 
 ```
 
-#Euthanasia with AP or AD 
+###Euthanasia with AP or AD 
 ```{r, echo=TRUE}
 Euthanasia_ADorAP <- Euthanasia_donor %>% 
    filter(Antipsychotica_atypical == "YES" | Antidepressant_90days == "YES")
@@ -355,4 +441,12 @@ length(Euthanasia_ADorAP$Donor_id)
 
 ```
 
+```{r donors without medication and euthanasia, echo=TRUE}
+Euthanasia_nomeds <- Euthanasia_donor %>% 
+   filter(Antipsychotica_atypical == "NO" & Antidepressant_90days == "NO")
+#number of donors 
+length(unique(Euthanasia_nomeds$Donor_id))
+#number of samples 
+length(Euthanasia_nomeds$Donor_id)
+```
 
