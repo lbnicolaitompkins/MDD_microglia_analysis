@@ -29,6 +29,17 @@ library(factoextra)
 library(ggsci)
 library(grid)
 library(venn)
+library(amap)
+library(scales)
+library(ggpubr)
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
 ```
 
 
@@ -38,6 +49,25 @@ knitr::opts_chunk$set(echo = TRUE)
 setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
 library(ProjectTemplate)
 load.project()
+```
+
+```{r directory}
+data_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data"
+project_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses"
+```
+
+```{r Helper Functions, echo=FALSE}
+createDT <- function(DF, caption="", scrollY=500){
+  data <- DT::datatable(DF, caption=caption,
+    extensions =  'Buttons',
+    options = list( dom = 'Bfrtip', 
+                    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'), 
+                    scrollY = scrollY, scrollX=T, scrollCollapse = T, paging = F,  
+                      columnDefs = list(list(className = 'dt-center', targets = "_all"))
+    )
+  ) 
+   return(data)
+}
 ```
 
 ```{r}
@@ -50,7 +80,8 @@ general_stats$Picard_PCT_PF_READS_ALIGNED <- as.numeric(general_stats$Picard_PCT
 general_stats$Picard_PERCENT_DUPLICATION <- as.numeric(general_stats$Picard_PERCENT_DUPLICATION)
 # dim(general_stats)
 
-data.frame(general_stats)
+createDT(general_stats)
+
 ```
 ##STAR: minimum of reads aligned
 ```{r, echo=TRUE}
@@ -132,4 +163,338 @@ venn(sample_overlap, zcolor = pal_npg(palette = c("nrc"), alpha = 1)(2), cexil =
 ```
 
 ### Samples with <5% coding
+```{r rna.seq metrics, echo=TRUE}
+picard_rnaseqmetrics = read.table(paste0(project_dir,"/mqc_picard_rnaseqmetrics_assignment_plot_1.txt"), header = T, stringsAsFactors = F, check.names = F, sep = '\t')
+coding_mapping = picard_rnaseqmetrics[,"Coding"] / rowSums(picard_rnaseqmetrics[,-1])
+names(coding_mapping) = picard_rnaseqmetrics$Sample
+filter_coding = coding_mapping < 0.05 
+names(filter_coding)[which(filter_coding == TRUE)]
+length( names(filter_coding)[which(filter_coding == TRUE)])
 
+```
+
+##Gene coverage plot 
+### All samples 
+```{r coverage.plot, echo=TRUE, fig.width=8, fig.height=4, dpi=300}
+multiqc_picard_coverage = read.table(paste0(project_dir, "/mqc_picard_rna_coverage_1.txt"), header = T, stringsAsFactors = F, check.names = F, sep = "\t", row.names = 1)
+#multiqc_picard_coverage[1:10, 1:6]
+x = colnames(multiqc_picard_coverage)
+x = as.numeric(x)
+colfunc <- colorRampPalette(c("#4DBBD5FF", "#3C5488FF")) # Blue colors
+colors = alpha(colfunc(nrow(multiqc_picard_coverage)), alpha = 0.5) # Adjust the alpha to have more or less transparency
+y = multiqc_picard_coverage[1,]
+plot(x, y, type = "l", xlab = "Gene body", ylab = "Read coverage", col=colors[1], ylim = c(0,2))
+for (i in 2:nrow(multiqc_picard_coverage))
+{
+  y = multiqc_picard_coverage[i,]
+  lines(x,y, col=colors[i])
+}
+```
+
+### Coverage in the position 90
+Looking carefully, we can see some outliers samples in position 90 of the gene coverage plot. So, we filtered the picard table to sort only this column and get these sample names. 
+```{r coverage_90, echo=TRUE}
+cov_90 = multiqc_picard_coverage$'90'
+cov_90 = as.data.frame(cov_90)
+rownames(cov_90) = rownames(multiqc_picard_coverage)
+colnames(cov_90) = c("position_90")
+cov_90_ordered = cov_90[order(cov_90$position_90, decreasing = T),,drop=F]
+createDT(cov_90_ordered)
+```
+
+### Excluding 8 outliers from 90 position
+The weird line is the sample 18-039-SVZ, an outlier everywhere. 
+```{r exclude.top10, echo=TRUE, fig.width=8, fig.height=4, dpi=300}
+exclude = rownames(cov_90_ordered)[1:8]
+multiqc_picard_coverage_filt = multiqc_picard_coverage[! rownames(multiqc_picard_coverage) %in% exclude ,]
+x = colnames(multiqc_picard_coverage_filt)
+x = as.numeric(x)
+colfunc <- colorRampPalette(c("#4DBBD5FF", "#3C5488FF")) # Blue colors
+colors = alpha(colfunc(nrow(multiqc_picard_coverage_filt)), alpha = 0.5) # Ajuste o alpha pra ter mais ou menos transparencia
+y = multiqc_picard_coverage_filt[1,]
+plot(x, y, type = "l", xlab = "Gene body", ylab = "Read coverage", col=colors[1], ylim = c(0,2))
+for (i in 2:nrow(multiqc_picard_coverage_filt))
+{
+  y = multiqc_picard_coverage_filt[i,]
+  lines(x,y, col=colors[i])
+}
+```
+
+## Excluding samples from 10% coding
+So, we will do not exclude all "degraded" samples based only on coding region. They are ouliers for different reasons: High duplications values but no high rRNA content, small insert size due to rRNA, or even high values of GC content. 
+```{r exclude.coverage_90, echo=TRUE, fig.width=8, fig.height=4, dpi=300}
+exclude = mrna_mapping_10
+multiqc_picard_coverage_filt = multiqc_picard_coverage[! rownames(multiqc_picard_coverage) %in% exclude ,]
+x = colnames(multiqc_picard_coverage_filt)
+x = as.numeric(x)
+colfunc <- colorRampPalette(c("#4DBBD5FF", "#3C5488FF")) # Blue colors
+colors = alpha(colfunc(nrow(multiqc_picard_coverage_filt)), alpha = 0.5) # Ajuste o alpha pra ter mais ou menos transparencia
+y = multiqc_picard_coverage_filt[1,]
+plot(x, y, type = "l", xlab = "Gene body", ylab = "Read coverage", col=colors[1], ylim = c(0,2))
+for (i in 2:nrow(multiqc_picard_coverage_filt))
+{
+  y = multiqc_picard_coverage_filt[i,]
+  lines(x,y, col=colors[i])
+}
+```
+
+## MyND filters
+### Samples < 20% coding region
+Based on the RNASeqMetrics Assignment plot from Picard. 
+```{r rnaseq.metrics1, echo=TRUE}
+picard_rnaseqmetrics = read.table(paste0(project_dir,"/mqc_picard_rnaseqmetrics_assignment_plot_1.txt"), header = T, stringsAsFactors = F, check.names = F, sep = '\t')
+coding_mapping = picard_rnaseqmetrics[,"Coding"] / rowSums(picard_rnaseqmetrics[,-1])
+names(coding_mapping) = picard_rnaseqmetrics$Sample
+filter_coding = coding_mapping < 0.2 # 20% MyND filter
+samples_20cod = as.data.frame(names(filter_coding)[which(filter_coding == TRUE)])
+colnames(samples_20cod) = c("Sample")
+samples_20cod
+```
+
+```{r rnaseq.metrics.numb1, echo=TRUE}
+length( names(filter_coding)[which(filter_coding == TRUE)])
+```
+
+### Samples with < 20M from STAR
+STAR: Uniquely mapped reads in millions. 
+```{r star_alignment_20, echo=TRUE}
+star_alignment = general_stats$Donor_tissue[which(general_stats$STAR_uniquely_mapped < 20000000)]
+star_alignment
+```
+
+```{r star_alignment_numb, echo=TRUE}
+length(star_alignment)
+```
+
+## 01 Suggestion of filters
+
+Filter 1 | Samples with < 10M from STAR: 0 samples.
+
+Filter 2 | Samples with > 20% ribosomal: 8 samples. 
+
+Filter 3 | Samples with < 10% coding region: 19 samples. 
+
+Filter 4 | Exploratory plots outliers: 9 samples.
+
+### Upset plot
+How are those samples overlapping? 
+```{r upset.filters1, echo=TRUE, fig.width=7, fig.height=4, dpi=300}
+filter4_samples = c("18-039-SVZ", "13-095-GTS", "18-012-GTS", "16-111-GTS", "17-092-GTS", "18-028-GFM", "18-012-GFM", "15-034-GTS", "16-024-GTS", "13-095-GTS")
+  
+list_filters = list(filter2 = ribosomal_bases, filter3 = mrna_mapping_10, filter4 = filter4_samples )
+UpSetR::upset(UpSetR::fromList(list_filters),
+              sets.bar.color=c("maroon","orange","blue"),
+              main.bar.color=c("maroon","orange","blue","salmon"))
+```
+
+### Excluding samples
+We still have some "degraded" samples. But, is it a problem? 
+```{r exclude.filters, echo=TRUE, fig.width=8, fig.height=4, dpi=300}
+samples2remove = unlist(list_filters) 
+exclude = unique(samples2remove)
+multiqc_picard_coverage_filt = multiqc_picard_coverage[! rownames(multiqc_picard_coverage) %in% exclude ,]
+x = colnames(multiqc_picard_coverage_filt)
+x = as.numeric(x)
+colfunc <- colorRampPalette(c("#4DBBD5FF", "#3C5488FF")) # Blue colors
+colors = alpha(colfunc(nrow(multiqc_picard_coverage_filt)), alpha = 0.5) # Ajuste o alpha pra ter mais ou menos transparencia
+y = multiqc_picard_coverage_filt[1,]
+plot(x, y, type = "l", xlab = "Gene body", ylab = "Read coverage", col=colors[1], ylim = c(0,2))
+for (i in 2:nrow(multiqc_picard_coverage_filt))
+{
+  y = multiqc_picard_coverage_filt[i,]
+  lines(x,y, col=colors[i])
+}
+```
+
+## 02 Suggestion of filters
+Without the Filter 2 of rRNA.
+
+Filter 1 | Samples with < 10M from STAR: 0 samples.
+
+Filter 3 | Samples with < 10% coding region: 19 samples. 
+
+Filter 4 | Exploratory plots outliers: 9 samples.
+
+### Upset plot
+How are those samples overlapping? 
+```{r upset.filters2, echo=TRUE, fig.width=7, fig.height=4, dpi=300}
+# filter4_samples comes from previous chunck.
+list_filters = list(filter3 = mrna_mapping_10, filter4 = filter4_samples )
+UpSetR::upset(UpSetR::fromList(list_filters),
+              sets.bar.color=c("maroon","orange"),
+              main.bar.color=c("maroon","orange"))
+```
+
+## 03 Suggestion of filters
+Without the Filter of PCA (and related plots like trees) outliers.
+
+Filter 1 | Samples with < 10M from STAR: 0 samples.
+
+Filter 2 | Samples with > 20% ribosomal: 8 samples. 
+
+Filter 3 | Samples with < 5% coding region: 2 samples. 
+
+Filter 4 | Outlier samples: 1 sample. 
+
+The filter 4 here is only to exclude the sample 18-039-SVZ, an outlier everywhere. 
+
+###  Upset plot
+```{r upset.filters3, echo=TRUE, fig.width=7, fig.height=4, dpi=300}
+filter4_samples = c("18-039-SVZ")
+  
+list_filters = list(filter2 = ribosomal_bases, filter3 = mrna_mapping_5, filter4 = filter4_samples )
+UpSetR::upset(UpSetR::fromList(list_filters),
+              sets.bar.color=c("maroon","orange","blue"),
+              main.bar.color=c("maroon","orange","blue"))
+```
+
+### List of samples from filters
+```{r samples.filters3, echo=TRUE}
+list_filters
+samples2remove = unlist(list_filters) 
+```
+
+## 04 Suggestion of filters
+Without the Filter of PCA (and related plots like trees) outliers. Using 10% of coding region. 
+
+Filter 1 | Samples with < 10M from STAR: 0 samples.
+
+Filter 2 | Samples with > 20% ribosomal: 8 samples. 
+
+Filter 3 | Samples with < 10% coding region: 19 samples. 
+
+Filter 4 | Outlier samples: 1 sample. 
+
+The filter 4 here is only to exclude the sample 18-039-SVZ, an outlier everywhere. We all agreed to start some downstream analysis with this combination of filters at the meeting on November 19, 2019. 
+
+###  Upset plot
+```{r upset.filters4, echo=TRUE, fig.width=7, fig.height=4, dpi=300}
+filter4_samples = c("18-039-SVZ")
+  
+list_filters = list(filter2 = ribosomal_bases, filter3 = mrna_mapping_10, filter4 = filter4_samples )
+UpSetR::upset(UpSetR::fromList(list_filters),
+              sets.bar.color=c("maroon","orange","blue"),
+              main.bar.color=c("maroon","orange","blue"))
+```
+
+### List of samples from filters
+```{r samples.filters4, echo=TRUE}
+list_filters
+samples2remove = unlist(list_filters) 
+#write.table(unique(samples2remove), file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples2remove_28s.txt", sep = "\t", quote = F, row.names = F)
+```
+
+### Coverage plot after suggestion 04
+```{r exclude.filters2, echo=TRUE, fig.width=8, fig.height=4, dpi=300}
+# Excluding 28 samples
+exclude = unique(samples2remove)
+multiqc_picard_coverage_filt = multiqc_picard_coverage[! rownames(multiqc_picard_coverage) %in% exclude ,]
+x = colnames(multiqc_picard_coverage_filt)
+x = as.numeric(x)
+colfunc <- colorRampPalette(c("#4DBBD5FF", "#3C5488FF")) # Blue colors
+colors = alpha(colfunc(nrow(multiqc_picard_coverage_filt)), alpha = 0.5) # Ajuste o alpha pra ter mais ou menos transparencia
+y = multiqc_picard_coverage_filt[1,]
+plot(x, y, type = "l", xlab = "Gene body", ylab = "Read coverage", col=colors[1], ylim = c(0,2))
+for (i in 2:nrow(multiqc_picard_coverage_filt))
+{
+  y = multiqc_picard_coverage_filt[i,]
+  lines(x,y, col=colors[i])
+}
+#write.table(unique(samples2remove), file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples2remove.txt", sep = "\t", quote = F, row.names = F)
+``` 
+
+### Top 6 "degraded" samples in the position 90
+```{r coverage_90_top, echo=TRUE}
+cov_90 = multiqc_picard_coverage$'90'
+cov_90 = as.data.frame(cov_90)
+rownames(cov_90) = rownames(multiqc_picard_coverage)
+colnames(cov_90) = c("position_90")
+cov_90_ordered = cov_90[order(cov_90$position_90, decreasing = T),,drop=F]
+createDT(head(cov_90_ordered))
+```
+
+## Distribution plots {.tabset .tabset-fade .tabset-pills} 
+### STAR: Uniquely mapped reads {.tabset .tabset-fade .tabset-pills}
+```{r distribution_star, echo=TRUE, fig.width=7, fig.height=8, dpi=300}
+# Excluding one sample for now 18-039_SVZ.  
+#general_stats$Donor_tissue[284] <- "18-079-THA" if NA is mentioned
+general_stats_alt = general_stats[!general_stats$Donor_tissue == "18-039-SVZ", ] #This sample has NAs
+ggplot(general_stats_alt, aes(x=STAR_uniquely_mapped)) +
+  geom_histogram(bins = 100,
+                 colour="black", fill="white", xlab="test") +
+  labs(x="Uniquely mapped reads", y="Number of samples") +
+  geom_vline(xintercept = 10000000, linetype="dotted", color="red", size=0.7) + 
+  scale_y_continuous(breaks = (1:100))
+```
+### Picard: Percentage of ribosomal RNA {.tabset .tabset-fade .tabset-pills}
+```{r distribution_rib, echo=TRUE, fig.width=7, fig.height=8, dpi=300}
+ggplot(general_stats_alt, aes(x=Picard_PCT_RIBOSOMAL_BASES)) +
+  geom_histogram(bins = 100,
+                 colour="black", fill="white", xlab="test") +
+  labs(x="Percentage of rRNA", y="Number of samples") +
+  geom_vline(xintercept = 20, linetype="dotted", color="red", size=0.7) + 
+  scale_y_continuous(breaks = (1:100))
+```
+
+
+### Picard: 5% coding region {.tabset .tabset-fade .tabset-pills}
+```{r distribution_cod, echo=TRUE, fig.width=10, fig.height=8, dpi=300}
+#Percent of aligned bases overlapping UTRs and coding regions of mRNAs.
+ggplot(general_stats_alt, aes(x=Picard_PCT_MRNA_BASES)) +
+  geom_histogram(bins = 100,
+                 colour="black", fill="white", xlab="test") +
+  labs(x="Percent of aligned bases overlapping UTRs and coding regions", y="Number of samples") +
+  geom_vline(xintercept = 5, linetype="dotted", color="red", size=0.7) + 
+  scale_y_continuous(breaks = (1:100))
+```
+
+### Picard: 10% coding region {.tabset .tabset-fade .tabset-pills}
+```{r distribution_cod_10, echo=TRUE, fig.width=10, fig.height=8, dpi=300}
+#Percent of aligned bases overlapping UTRs and coding regions of mRNAs.
+ggplot(general_stats_alt, aes(x=Picard_PCT_MRNA_BASES)) +
+  geom_histogram(bins = 100,
+                 colour="black", fill="white", xlab="test") +
+  labs(x="Percent of aligned bases overlapping UTRs and coding regions", y="Number of samples") +
+  geom_vline(xintercept = 10, linetype="dotted", color="red", size=0.7) + 
+  scale_y_continuous(breaks = (1:100))
+```
+
+## Scatter plot {.tabset .tabset-fade .tabset-pills}
+### STAR 10M x PICARD 5% coding {.tabset .tabset-fade .tabset-pills}
+Coding here includes mRNA and UTR regions. 
+```{r scatter.plot_5per, echo=TRUE}
+# ggplot(general_stats_alt, aes(x=STAR_uniquely_mapped, y=Picard_PCT_MRNA_BASES)) +
+#   geom_point()
+general_stats_alt$toRemove = general_stats_alt$'STAR_uniquely_mapped' < 10e6 | general_stats_alt$'Picard_PCT_MRNA_BASES' < 5 # 5% mRNA
+ggscatter(general_stats_alt, x="STAR_uniquely_mapped", y="Picard_PCT_MRNA_BASES",
+          fill = "toRemove", 
+          size = 2, 
+          shape = 21,
+          palette = c("#00AFBB", "#FC4E07"), 
+          xlab = "STAR: Uniquely mapped reads",
+          ylab = "PICARD: % of coding region") + 
+  geom_hline( yintercept = 5, linetype="dotted") + # 5% of coding region 
+  geom_vline(xintercept = 10e6, linetype="dotted")  #10 M mapped reads
+```
+
+### STAR 10M x PICARD 10% coding {.tabset .tabset-fade .tabset-pills}
+Coding here includes mRNA and UTR regions. 
+```{r scatter.plot_10p, echo=TRUE}
+# ggplot(general_stats_alt, aes(x=STAR_uniquely_mapped, y=Picard_PCT_MRNA_BASES)) +
+#   geom_point()
+general_stats_alt$toRemove = general_stats_alt$`STAR_uniquely_mapped` < 10e6 | general_stats_alt$`Picard_PCT_MRNA_BASES` < 10 # 10% mRNA
+ggscatter(general_stats_alt, x="STAR_uniquely_mapped", y="Picard_PCT_MRNA_BASES",
+          fill = "toRemove", 
+          size = 2, 
+          shape = 21,
+          palette = c("#00AFBB", "#FC4E07"), 
+          xlab = "STAR: Uniquely mapped reads",
+          ylab = "PICARD: % of coding region") + 
+  geom_hline( yintercept = 10, linetype="dotted") + # 10% of coding region 
+  geom_vline(xintercept = 10e6, linetype="dotted")  #10 M mapped reads
+```
+
+
+```{r session, echo=TRUE}
+sessionInfo()
+```
