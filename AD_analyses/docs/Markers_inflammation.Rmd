@@ -1,0 +1,171 @@
+---
+title: "markers_inflammation"
+author: "LB"
+date: "5/18/2021"
+output: html_document
+---
+
+```{r load.packages, echo=FALSE, message=FALSE, results='hide'}
+library(readxl)
+library(edgeR)
+library(limma)
+library(DESeq2)
+library(tidyverse)
+library(data.table)
+
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+```
+
+```{r setup, echo=FALSE, message=FALSE, results='hide'}
+setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
+library(ProjectTemplate)
+load.project()
+```
+
+```{r directory}
+data_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/"
+project_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/"
+```
+
+```{r load_data, echo=TRUE, results = 'hide'}
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/gene_matrix.RData")
+metadata = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/metadata_gen_stats_alt.xslx"
+metadata = read_excel(metadata, col_names = TRUE) 
+metadata = as.data.frame(metadata)
+row.names(metadata) <- metadata$Donor_tissue
+
+#this excludes the samples selected after quality control 
+exclude_qc <- read.table("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples2remove_28s.txt")
+exclude_qc <- exclude[-1,]
+
+#this excludes the samples without medication information
+exclude_na <- read.table("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples2remove_drugNA.txt")
+exclude_na<- exclude_na$x
+
+colnames(genes_tpm)[1] <- "13-072-CC" 
+genes_tpm_filt = genes_tpm[, !colnames(genes_tpm) %in% exclude_qc] 
+genes_tpm_filt = genes_tpm[, !colnames(genes_tpm) %in% exclude_na]
+
+metadata_filt = metadata[ !(rownames(metadata) %in% exclude_qc), ]
+metadata_filt = metadata[ !(rownames(metadata) %in% exclude_na), ]
+
+#check for expression of inflammatioon markers in dataset
+markers_inflam = paste0(data_dir, "inflammatory_markers.xlsx")
+markers_inflam = read_excel(markers_inflam, col_names = TRUE) 
+markers_inflam = as.data.frame(markers_inflam)
+
+genes_tpm_filt = log2((genes_tpm_filt) + 1)
+genes_tpm_filt <- as.data.frame(genes_tpm_filt)
+rownames(genes_tpm_filt) = genes_tpm_filt$ensembl 
+dim(genes_tpm_filt) #58929 265
+
+#ensemble column is now redundant, so can be removed. 
+genes_tpm_filt <- genes_tpm_filt[,-1]
+dim(genes_tpm_filt) #58929 264 
+``` 
+
+```{r}
+#change to corresponding ensembl numbers
+markers_inflam$ensembl[1] <- grep(pattern = "136244", x = genes_tpm_filt$ensembl, value = T)
+markers_inflam$ensembl[2] <- grep(pattern = "125538", x = genes_tpm_filt$ensembl, value = T)
+markers_inflam$ensembl[3] <- grep(pattern = "232810", x = genes_tpm_filt$ensembl, value = T)
+markers_inflam$ensembl[4] <- grep(pattern = "007171", x = genes_tpm_filt$ensembl, value = T)
+markers_inflam$ensembl[5] <- grep(pattern = "136634", x = genes_tpm_filt$ensembl, value = T)
+
+
+#creates dataframe with samples of only inflammartory marker genes 
+genes_tpm_mark = merge(genes_tpm_filt, markers_inflam, by="ensembl")
+rownames(genes_tpm_mark)
+rownames(genes_tpm_mark) = genes_tpm_mark$ensembl
+```
+
+```{r data_load_markers, echo = TRUE, results = 'hide'}
+marker_expression = merge(genes_tpm_mark, markers, by ="symbol")
+dim (marker_expression)
+head (marker_expression)
+#check for rownames
+has_rownames(marker_expression)
+#change column ensembl into rownames > tidyverse package 
+marker_expression <- column_to_rownames(marker_expression, var = "ensembl.x")
+
+#check for last column > is it ensembl.y? 
+# if so: marker_expression <- marker_expression[,-266]
+
+#change rownames into gene codes 
+rownames(genes_tpm_filt) = genes_tpm_filt$ensembl 
+dim(genes_tpm_filt) #58929 265
+
+#ensemble column is now redundant, so can be removed. 
+genes_tpm_filt <- genes_tpm_filt[,-1]
+dim(genes_tpm_filt) #58929 264 
+
+
+metadata_filt_ordered <- metadata_filt[colnames(genes_tpm_filt),]
+metadata_filt_ordered = metadata_filt_ordered[-1,]
+all(rownames(metadata_filt_ordered) == colnames (genes_tpm_filt)) #TRUE
+Drugs <- metadata_filt_ordered$Drugs
+
+```
+
+### Boxplot IL6
+```{r data_load_IL6, echo = TRUE}
+IL6 <- marker_expression[1, ] 
+IL6$ensembl = NULL
+IL6$symbol = NULL
+IL6_new<-as.data.frame(t(IL6))
+df = data.frame(Drugs, IL6_new)
+ggplot(data = df, mapping = aes(x = Drugs, y = PC1)) +
+  geom_boxplot()+ 
+  ggtitle("IL6") +
+  xlab("Drugs") + ylab("log2((TPM)+1)")
+
+```
+### Boxplot IL1b
+```{r data_load_IL1b, echo = TRUE}
+IL1b <- marker_expression[2, ] 
+IL1b$ensembl = NULL
+IL1b$symbol = NULL
+IL1b_new<-as.data.frame(t(IL1b))
+df = data.frame(Drugs, IL1b_new)
+ggplot(data = df, mapping = aes(x = Drugs, y = PC1)) +
+  geom_boxplot()+ 
+  ggtitle("IL1b") +
+  xlab("Drugs") + ylab("log2((TPM)+1)")
+
+```
+
+``
+### Boxplot NOS2
+```{r data_load_NOS2, echo = TRUE}
+NOS2 <- marker_expression[3, ] 
+NOS2$ensembl = NULL
+NOS2$symbol = NULL
+NOS2_new<-as.data.frame(t(NOS2))
+df = data.frame(Drugs, NOS2_new)
+ggplot(data = df, mapping = aes(x = Drugs, y = PC1)) +
+  geom_boxplot()+ 
+  ggtitle("NOS2") +
+  xlab("Drugs") + ylab("log2((TPM)+1)")
+
+```
+
+### Boxplot TNFa
+```{r data_load_TNFa, echo = TRUE}
+TNFa <- marker_expression[4, ] 
+TNFa$ensembl = NULL
+TNFa$symbol = NULL
+TNFa_new<-as.data.frame(t(TNFa))
+df = data.frame(Drugs, TNFa_new)
+ggplot(data = df, mapping = aes(x = Drugs, y = PC1)) +
+  geom_boxplot()+ 
+  ggtitle("TNFa") +
+  xlab("Drugs") + ylab("log2((TPM)+1)")
+
+```

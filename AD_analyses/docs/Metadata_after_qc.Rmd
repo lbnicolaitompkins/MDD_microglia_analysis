@@ -1,0 +1,104 @@
+---
+title: "Metadata_after_qc"
+author: "LB"
+date: "4/21/2021"
+output: html_document
+---
+
+```{r load.packages, echo=FALSE, message=FALSE, results='hide'}
+library(readxl)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(RColorBrewer)
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+```
+
+
+```{r directory}
+data_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data"
+project_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses"
+```
+
+# Preparing metadata
+### Create metadata file 
+
+```{r load_file, echo=TRUE}
+metadata = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/20210511_metadata.xlsx"
+metadata = read_excel(metadata, col_names = TRUE) 
+metadata = as.data.frame(metadata)
+#setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
+general_stats_alt <- read.table(paste0(data_dir,"/multiqc_general_stats_alt_313s.txt"), header=T, stringsAsFactors = FALSE)
+metadata <- merge(metadata, general_stats, by = "Donor_tissue")
+
+#set rownames to Donor_tissue
+row.names(metadata) <- metadata$Donor_tissue 
+```
+
+```{r}
+library(writexl)
+write_xlsx(metadata,"/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/metadata_gen_stats_alt.xslx")
+```
+
+
+### Change names
+
+```{r metadata1, echo=TRUE, results = 'hide'}
+# change names in metadata and set to correct data types 
+names(metadata)[names(metadata) == "Picard_PCT_MRNA_BASES.x"] <- "picard_pct_mrna_bases"
+names(metadata)[names(metadata) == "Picard_PERCENT_DUPLICATION.x"] <- "picard_pct_percent_duplication"
+names(metadata)[names(metadata) == "Picard_summed_mean.x"] <- "picard_summed_mean"
+names(metadata)[names(metadata) == "Picard_summed_median.x"] <- "picard_summed_median"
+names(metadata)[names(metadata) == "Picard_PCT_RIBOSOMAL_BASES.x"] <- "picard_pct_ribosomal_bases"
+names(metadata)[names(metadata) == "Picard_PCT_PF_READS_ALIGNED.x"] <- "picard_pct_pf_reads_aligned"
+names(metadata)[names(metadata) == "featureCounts_Assigned.x"] <- "featurecounts_assigned"
+names(metadata)[names(metadata) == "STAR_uniquely_mapped.x"] <- "star_uniquely_mapped"
+names(metadata)[names(metadata) == "STAR_uniquely_mapped_percent.x"] <- "star_uniquely_mapped_percent"
+```
+
+### Change to correct data format
+```{r metadata2, echo=TRUE, results = 'hide'}
+metadata$Picard_PCT_MRNA_BASES <- as.numeric(metadata$Picard_PCT_MRNA_BASES)
+length(metadata$Picard_PCT_MRNA_BASES)
+
+metadata$picard_pct_percent_duplication <- as.numeric(metadata$picard_pct_percent_duplication)
+length(metadata$picard_pct_percent_duplication)
+
+metadata$picard_summed_mean <- as.numeric(metadata$picard_summed_mean)
+length(metadata$picard_summed_mean)
+
+metadata$picard_summed_median <- as.numeric(metadata$picard_summed_median)
+length(metadata$picard_summed_median)
+
+metadata$picard_pct_ribosomal_bases <- as.numeric(metadata$picard_pct_ribosomal_bases)
+length(metadata$picard_pct_ribosomal_bases)
+
+metadata$picard_pct_pf_reads_aligned <- as.numeric(metadata$picard_pct_pf_reads_aligned)
+length(metadata$picard_pct_pf_reads_algined)
+
+metadata$featurecounts_assigned <- as.numeric(metadata$featurecounts_assigned)
+length(metadata$featurecounts_assigned)
+
+metadata$star_uniquely_mapped <- as.numeric(metadata$star_uniquely_mapped)
+length(metadata$star_uniquely_mapped)
+
+metadata$star_uniquely_mapped_percent <- as.numeric(metadata$star_uniquely_mapped_percent)
+length (metadata$star_uniquely_mapped_percent)
+
+metadata$featurecounts_assigned <- as.numeric(metadata$featurecounts_assigned)
+
+metadata$Tissue <- as.factor(metadata$Tissue)
+
+metadata$Diagnosis <- as.factor (metadata$Diagnosis)
+
+metadata$Main_diagnosis <- as.factor (metadata$Main_diagnosis)
+```
+
+##https://github.com/RajLabMSSM/MiGASti/blob/master/docs/Metadata_all.Rmd
+
