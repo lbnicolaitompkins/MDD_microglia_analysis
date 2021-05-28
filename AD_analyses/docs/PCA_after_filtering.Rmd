@@ -63,12 +63,18 @@ metadata = read_excel(metadata, col_names = TRUE)
 metadata = as.data.frame(metadata)
 row.names(metadata) <- metadata$Donor_tissue
 
+#this excludes the samples selected after quality control 
 exclude_qc <- read.table("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples2remove_28s.txt")
-exclude_qc <- exclude[-1,]
+exclude_qc <- exclude_qc[-1,]
 
 #this excludes the samples without medication information
 exclude_na <- read.table("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/samples2remove_drugNA.txt")
 exclude_na<- exclude_na$x
+
+exclude_total <- unique(c(exclude_na, exclude_qc))
+#save(exclude_total, file="/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/exclude_total.rda") 
+#now use load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/exclude_total.rda")
+
   
 colnames(genes_counts)[1] <- "13-072-CC" 
 genes_counts_filt = genes_counts[, !colnames(genes_counts) %in% exclude_qc]
@@ -104,7 +110,6 @@ autoplot(pca, data= metadata_filt, colour = 'Drugs', shape = FALSE, label.size =
 ```
 
 # Heatmap with 20 PCS 
-#Including uncultured: 496 samples in total 
 
 ```{r heatmap_all, echo=TRUE, fig.width=12, fig.height=8, dpi=300}
 #set metadata to no capitals

@@ -1,0 +1,126 @@
+---
+title: "Markers_alzheimer"
+author: "LB"
+date: "5/28/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Alzheimer genes in patients wits Alzheimer using medication vs no medication 
+```{r load.packages, echo=FALSE, message=FALSE, results='hide'}
+library(readxl)
+library(edgeR)
+library(limma)
+library(DESeq2)
+library(tidyverse)
+library(data.table)
+library(pheatmap)
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+```
+
+```{r directory}
+data_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/"
+project_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/"
+```
+
+```{r load_data, echo=TRUE, results = 'hide'}
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/gene_matrix.RData")
+metadata = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/metadata_gen_stats_alt.xslx"
+metadata = read_excel(metadata, col_names = TRUE) 
+metadata = as.data.frame(metadata)
+#set rownames to donor_tissue
+row.names(metadata) <- metadata$Donor_tissue
+colnames(metadata)[16] <- "Medication"  
+
+#this contains the samples removed after qc and lack of medication information 
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/exclude_total.rda")
+
+
+colnames(genes_tpm)[1] <- "13-072-CC" 
+genes_tpm_filt = genes_tpm[, !colnames(genes_tpm) %in% exclude_total] 
+metadata_filt = metadata[ !(rownames(metadata) %in% exclude_total), ]
+
+alz <- filter(metadata_filt, Diagnosis == "Alzheimers disease")
+genes_tpm_alz = genes_tpm[, colnames(genes_tpm) %in% alz$Donor_tissue] 
+metadata_alz = metadata[ (rownames(metadata) %in% alz$Donor_tissue), ]
+
+gencode_30 <- read.table("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/ens.geneid.gencode.v30")
+colnames(gencode_30) = c("ensembl","symbol")
+gencode_30 <- gencode_30[-1,]
+
+
+genes_tpm_alz = log2((genes_tpm_alz) + 1)
+genes_tpm_alz <- as.data.frame(genes_tpm_alz)
+setDT(genes_tpm_alz, keep.rownames = genes_tpm_alz$ensembl) 
+#colnames(genes_tpm_alz), check if first col is called ensembl
+names(genes_tpm_alz)[1] <- "ensembl"
+res_name = merge(genes_tpm_alz, gencode_30, by="ensembl")
+rownames(res_name) = res_name$ensembl
+
+dim(genes_tpm_alz) #58929 11
+
+#ensembl column is now redundant, so can be removed. 
+genes_tpm_alz <- genes_tpm_alz[,-1]
+dim(genes_tpm_alz) #58929 10
+
+marker_expression = merge(res_name, markers_all, by ="symbol")
+dim (marker_expression) #324 13
+head (marker_expression)
+marker_expression <- marker_expression[,-13]
+#check if category is included, if so, remove. 
+metadata_alz_ordered <- metadata_alz[colnames(genes_tpm_alz),]
+#metadata_alz_ordered = metadata_alz_ordered[-1,]
+all(rownames(metadata_alz_ordered) == colnames (genes_tpm_alz)) #TRUE
+Medication <- metadata_alz_ordered$Medication
+```
+
+
+Heatmap of only alzheimer genes 
+```{r}
+marker_alzheimer <- filter(markers_all, category == "Alzheimer")
+
+marker_expression_alzheimer = merge(res_name, marker_alzheimer, by ="symbol")
+dim (marker_expression_alzheimer) #46 13
+head (marker_expression_alzheimer)
+marker_expression_alzheimer <- marker_expression_alzheimer[, -13]# remove category column 
+```
+
+
+```{r}
+#setdiff(marker_alzheimer$symbol, marker_expression_alzheimer$symbol)
+
+```
+
+```{r}
+marker_expression_alzheimer$ensembl <- NULL
+df_num_a <- as.matrix(marker_expression_alzheimer[,2:11]) #check voor invalid column (eg. category or sample)
+rownames(df_num_a) <- sapply(marker_expression_alzheimer$symbol, function(x) 
+  strsplit(as.character(x),split = "\\\\")[[1]][1])
+df_num_a_scale = scale(df_num_a)
+df_num_a_scale = t(df_num_a_scale)
+pos_df_a = data.frame("Medication" = metadata_alz_ordered$Medication)
+rownames(pos_df_a) = rownames(df_num_a_scale)
+pheatmap(df_num_a_scale, scale = "column", annotation_row = pos_df_a, main = "Target alzheimer genes in AD patients", show_rownames = F)
+```
+
+
+### Row clustering > samples 
+
+```{r data_load_heatmap2_alzheimer, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_a_scale, cluster_cols = F, cluster_rows = T, annotation_row = pos_df_a, main = "Target alzheimer genes in AD patients", show_rownames = F)
+```
+
+### Row scaling 
+#Scaling by row means that each row of the data matrix is taken in turn and given to the scale() function
+
+```{r data_load_heatmap3_alzheimer, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_a_scale, scale = "row", annotation_row = pos_df_a, main = "Target alzheimer genes in AD patients", show_rownames = F)
+```

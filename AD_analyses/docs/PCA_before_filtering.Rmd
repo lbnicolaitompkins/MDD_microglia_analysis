@@ -71,7 +71,7 @@ genes_counts_ordered <- genes_counts_voom[,rownames(metadata)]
 all(rownames(metadata) == colnames (genes_counts_ordered)) #TRUE
 ```
 ```{r}
-# save(genes_counts_ordered, file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/genes_counts_ordered.Rdata")
+# write.table(genes_counts_ordered, file = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/genes_counts_ordered.Rdata")
 ```
 
 

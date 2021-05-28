@@ -1,0 +1,321 @@
+---
+title: "Markers_all"
+author: "LB"
+date: "5/28/2021"
+output: html_document
+---
+
+```{r load.packages, echo=FALSE, message=FALSE, results='hide'}
+library(readxl)
+library(edgeR)
+library(limma)
+library(DESeq2)
+library(tidyverse)
+library(data.table)
+library(pheatmap)
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+```
+
+```{r setup, echo=FALSE, message=FALSE, results='hide'}
+#setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
+library(ProjectTemplate)
+#load.project()
+```
+
+```{r directory}
+data_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/"
+project_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/"
+```
+
+```{r load_data, echo=TRUE, results = 'hide'}
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/gene_matrix.RData")
+metadata = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/metadata_gen_stats_alt.xslx"
+metadata = read_excel(metadata, col_names = TRUE) 
+metadata = as.data.frame(metadata)
+#set rownames to donor_tissue
+row.names(metadata) <- metadata$Donor_tissue
+colnames(metadata)[16] <- "Medication"  
+
+#this contains the samples removed after qc and lack of medication information 
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/exclude_total.rda")
+
+
+
+colnames(genes_tpm)[1] <- "13-072-CC" 
+genes_tpm_filt = genes_tpm[, !colnames(genes_tpm) %in% exclude_total] 
+metadata_filt = metadata[ !(rownames(metadata) %in% exclude_total), ]
+
+
+#check for expression of microglia markers in dataset
+markers_all = paste0(project_dir, "data/gene_markers.xlsx")
+markers_all <- read_excel(markers_all, col_names = T)
+markers_all = as.data.frame(markers_all)
+colnames(markers_all) <- c("symbol", "category")
+
+gencode_30 <- read.table("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/ens.geneid.gencode.v30")
+colnames(gencode_30) = c("ensembl","symbol")
+gencode_30 <- gencode_30[-1,]
+
+
+genes_tpm_filt = log2((genes_tpm_filt) + 1)
+genes_tpm_filt <- as.data.frame(genes_tpm_filt)
+setDT(genes_tpm_filt, keep.rownames = genes_tpm_filt$ensembl) 
+#colnames(genes_tpm_filt), check if first col is called ensembl
+names(genes_tpm_filt)[1] <- "ensembl"
+res_name = merge(genes_tpm_filt, gencode_30, by="ensembl")
+rownames(res_name) = res_name$ensembl
+
+dim(genes_tpm_filt) #58929 239
+
+#ensembl column is now redundant, so can be removed. 
+genes_tpm_filt <- genes_tpm_filt[,-1]
+dim(genes_tpm_filt) #58929 238
+``` 
+
+```{r data_load_markers, echo = TRUE, results = 'hide'}
+marker_expression = merge(res_name, markers_all, by ="symbol")
+dim (marker_expression) #293 240
+head (marker_expression)
+#check if category is included, if so, remove. 
+metadata_filt_ordered <- metadata_filt[colnames(genes_tpm_filt),]
+#metadata_filt_ordered = metadata_filt_ordered[-1,]
+all(rownames(metadata_filt_ordered) == colnames (genes_tpm_filt)) #TRUE
+Medication <- metadata_filt_ordered$Medication
+```
+
+### Boxplot IL10
+```{r data_load_IL6, echo = TRUE}
+IL10 <- marker_expression_inflammatory["IL10", ] 
+IL10$ensembl = NULL
+IL10$symbol = NULL
+IL10_new<-as.data.frame(t(IL10))
+dfIL10 = data.frame(Medication, IL10_new)
+ggplot(data = dfIL10, mapping = aes(x = Medication, y = V1)) +
+  geom_boxplot()+ 
+  ggtitle("IL10") +
+  stat_compare_means()+
+  xlab("Medication") + ylab("log2((TPM)+1)")
+
+```
+
+### Boxplot IL1B
+```{r data_load_IL1B, echo = TRUE}
+IL1B <- marker_expression_inflammatory["IL1B", ] 
+IL1B$ensembl = NULL
+IL1B$symbol = NULL
+IL1B_new<-as.data.frame(t(IL1B))
+dfIL1B = data.frame(Medication, IL1B_new)
+ggplot(data = dfIL1B, mapping = aes(x = Medication, y = V1)) +
+  geom_boxplot()+ 
+  stat_compare_means()+
+  ggtitle("IL1B") +
+  xlab("Medication") + ylab("log2((TPM)+1)")
+
+```
+
+``
+### Boxplot IL6
+```{r data_load_IL6, echo = TRUE}
+IL6 <- marker_expression_inflammatory["IL6", ] 
+IL6$ensembl = NULL
+IL6$symbol = NULL
+IL6_new<-as.data.frame(t(IL6))
+dfIL6 = data.frame(Medication, IL6_new)
+ggplot(data = dfIL6, mapping = aes(x = Medication, y = V1)) +
+  geom_boxplot()+ 
+  ggtitle("IL6") +
+  stat_compare_means()+
+  xlab("Medication") + ylab("log2((TPM)+1)")
+
+```
+
+### Boxplot NOS2
+```{r data_load_NOS2, echo = TRUE}
+NOS2 <- marker_expression_inflammatory["NOS2", ] 
+NOS2$ensembl = NULL
+NOS2$symbol = NULL
+NOS2_new<-as.data.frame(t(NOS2))
+dfNOS2 = data.frame(Medication, NOS2_new)
+ggplot(data = dfNOS2, mapping = aes(x = Medication, y = V1)) +
+  geom_boxplot()+ 
+  ggtitle("NOS2") +
+  stat_compare_means()+
+  xlab("Medication") + ylab("log2((TPM)+1)")
+  
+ #add significance (ggpubber)
+
+  
+
+```
+
+```{r data_load_TNF, echo = TRUE}
+TNF <- marker_expression["TNF", ] 
+TNF$ensembl = NULL
+TNF$symbol = NULL
+TNF_new<-as.data.frame(t(TNF))
+dfTNF = data.frame(Medication, TNF_new)
+ggplot(data = dfTNF, mapping = aes(x = Medication, y = V1)) +
+  geom_boxplot()+ 
+  ggtitle("TNF") +
+  xlab("Medication") + ylab("log2((TPM)+1)")
+```
+
+
+# Heatmap with all markers  
+### Both column and row clustering turned on
+
+```{r data_load_heatmap_all, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+marker_expression$ensembl = NULL
+df_num = as.matrix(marker_expression[,2:239])
+rownames(df_num) = sapply(marker_expression$symbol,function(x) 
+strsplit(as.character(x),split = "\\\\")[[1]][1])
+df_num_scale = scale(df_num)
+df_num_scale = t(df_num_scale)
+pos_df = data.frame("Medication" = metadata_filt_ordered$Medication)
+rownames(pos_df) = rownames(df_num_scale)
+pheatmap(df_num_scale, scale = "column", annotation_row = pos_df, main = "Target genes per medication", show_rownames = F)
+```
+
+### Row clustering 
+
+```{r data_load_heatmap2_all, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_scale, cluster_cols = F, cluster_rows = T, annotation_row = pos_df, main = "Target genes per medication", show_rownames = F)
+```
+
+### Row scaling 
+#Scaling by row means that each row of the data matrix is taken in turn and given to the scale() function
+
+```{r data_load_heatmap3_all, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_scale, scale = "row", annotation_row = pos_df, main = "Target genes per stimulation", show_rownames = F)
+```
+
+
+Heatmap of only homeostatic genes 
+```{r data_load_markers_homeostatic, echo = TRUE, results = 'hide'}
+marker_homeostatic <- filter(markers_all, category == "Homeostatic")
+#marker_homeostatic <- marker_homeostatic[,-2]
+
+marker_expression_homeostatic = merge(res_name, marker_homeostatic, by ="symbol")
+dim (marker_expression_homeostatic) #246 241
+head (marker_expression_homeostatic)
+#marker_expression_homeostatic <- marker_expression_homeostatic[, -#remove category column 
+```
+```{r}
+#setdiff(marker_homeostatic$symbol, marker_expression_homeostatic$symbol)
+# "FAM105A"  "HLA-DRB3" "HLA-DRB4" "TGFB1"  
+# FAM105A > ENSG00000145569.6 voeg toe 
+```
+
+
+```{r data_load_heatmap, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+marker_expression_homeostatic$ensembl = NULL
+df_num = as.matrix(marker_expression_homeostatic[,2:239]) #c.1 is symbol, c.240 is category
+rownames(df_num) = sapply(marker_expression_homeostatic$symbol,function(x) 
+strsplit(as.character(x),split = "\\\\")[[1]][1])
+df_num_scale = scale(df_num)
+df_num_scale = t(df_num_scale)
+pos_df = data.frame("Medication" = metadata_filt_ordered$Medication)
+rownames(pos_df) = rownames(df_num_scale)
+pheatmap(df_num_scale, scale = "column", annotation_row = pos_df, main = "Target homeostatic genes per medication", show_rownames = F)
+```
+### Row clustering 
+
+```{r data_load_heatmap2, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_scale, cluster_cols = F, cluster_rows = T, annotation_row = pos_df, main = "Target homeostatic genes per medication", show_rownames = F)
+```
+### Row scaling 
+#Scaling by row means that each row of the data matrix is taken in turn and given to the scale() function
+
+```{r data_load_heatmap3, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_scale, scale = "row", annotation_row = pos_df, main = "Target homeostatic genes per stimulation", show_rownames = F)
+```
+
+
+Heatmap of only inflammatory genes 
+```{r data_load_markers_inflammatory, echo = TRUE, results = 'hide'}
+marker_inflammatory_p <- filter(markers_all, category == "Pro_inflammatory")
+marker_inflammatory_a <- filter(markers_all, category == "Anti_inflammatory")
+marker_inflammatory <- rbind(marker_inflammatory_p, marker_inflammatory_a) 
+
+
+marker_expression_inflammatory = merge(res_name, marker_inflammatory, by ="symbol")
+dim (marker_expression_inflammatory) #32 241
+head (marker_expression_inflammatory)
+marker_expression_inflammatory <- marker_expression_inflammatory[, -241]# remove category column 
+```
+
+```{r}
+setdiff(marker_inflammatory$symbol, marker_expression_inflammatory$symbol)
+
+```
+
+
+```{r data_load_heatmap, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+marker_expression_inflammatory$ensembl <- NULL
+df_num <- as.matrix(marker_expression_inflammatory[,2:239]) #check voor invalid column (eg. category or sample)
+rownames(df_num) <- sapply(marker_expression_inflammatory$symbol, function(x) 
+strsplit(as.character(x),split = "\\\\")[[1]][1])
+df_num_scale = scale(df_num)
+df_num_scale = t(df_num_scale)
+pos_df = data.frame("Medication" = metadata_filt_ordered$Medication)
+rownames(pos_df) = rownames(df_num_scale)
+pheatmap(df_num_scale, scale = "column", annotation_row = pos_df, main = "Target inflammatory genes per medication", show_rownames = F)
+```
+### Row clustering 
+
+```{r data_load_heatmap2, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_scale, cluster_cols = F, cluster_rows = T, annotation_row = pos_df, main = "Target inflammatory genes per medication", show_rownames = F)
+```
+### Row scaling 
+#Scaling by row means that each row of the data matrix is taken in turn and given to the scale() function
+
+```{r data_load_heatmap3, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_scale, scale = "row", annotation_row = pos_df, main = "Target inflammatory genes per stimulation", show_rownames = F)
+```
+
+ALZHEIMER GENES 
+Heatmap of only alzheimer genes 
+```{r data_load_markers_alzheimer, echo = TRUE, results = 'hide'}
+marker_alzheimer <- filter(markers_all, category == "Alzheimer")
+
+marker_expression_alzheimer = merge(res_name, marker_alzheimer, by ="symbol")
+dim (marker_expression_alzheimer) #46 241
+head (marker_expression_alzheimer)
+marker_expression_alzheimer <- marker_expression_alzheimer[, -241]# remove category column 
+```
+
+```{r}
+#setdiff(marker_alzheimer$symbol, marker_expression_alzheimer$symbol)
+
+```
+
+
+```{r data_load_heatmap_alzheimer, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+marker_expression_alzheimer$ensembl <- NULL
+df_num_a <- as.matrix(marker_expression_alzheimer[,2:239]) #check voor invalid column (eg. category or sample)
+rownames(df_num_a) <- sapply(marker_expression_alzheimer$symbol, function(x) 
+strsplit(as.character(x),split = "\\\\")[[1]][1])
+df_num_a_scale = scale(df_num_a)
+df_num_a_scale = t(df_num_a_scale)
+pos_df_a = data.frame("Medication" = metadata_filt_ordered$Medication)
+rownames(pos_df_a) = rownames(df_num_a_scale)
+pheatmap(df_num_a_scale, scale = "column", annotation_row = pos_df_a, main = "Target alzheimer genes per medication", show_rownames = F)
+```
+### Row clustering 
+
+```{r data_load_heatmap2_alzheimer, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_a_scale, cluster_cols = F, cluster_rows = T, annotation_row = pos_df_a, main = "Target alzheimer genes per medication", show_rownames = F)
+```
+### Row scaling 
+#Scaling by row means that each row of the data matrix is taken in turn and given to the scale() function
+
+```{r data_load_heatmap3_alzheimer, echo = TRUE, fig.width=14, fig.height=14, dpi=300}
+pheatmap(df_num_a_scale, scale = "row", annotation_row = pos_df_a, main = "Target alzheimer genes per stimulation", show_rownames = F)
+```

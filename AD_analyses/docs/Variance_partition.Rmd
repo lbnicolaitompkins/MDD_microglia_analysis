@@ -1,0 +1,69 @@
+---
+title: "Variance_partition"
+author: "LB"
+date: "5/18/2021"
+output: html_document
+---
+
+```{r load.packages, echo=FALSE, message=FALSE, results='hide'}
+library(variancePartition)
+library(edgeR)
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+```
+
+```{r setup, echo=FALSE, message=FALSE, results='hide'}
+setwd("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses")
+library(ProjectTemplate)
+load.project()
+```
+
+```{r load_data, echo=TRUE, results = 'hide'}
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/gene_matrix.RData")
+metadata = "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/metadata_gen_stats_alt.xslx"
+metadata = read_excel(metadata, col_names = TRUE) 
+metadata = as.data.frame(metadata)
+row.names(metadata) <- metadata$Donor_tissue
+
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/exclude_total.rda")
+
+``` 
+
+```{r}
+colnames(genes_counts)[1] <- "13-072-CC"
+genes_counts_filt = genes_counts[, !colnames(genes_counts) %in% exclude_total] #238 variables 
+metadata_filt = metadata[ !(rownames(metadata) %in% exclude_total), ] #238 variables 
+cpm <- cpm(genes_counts_filt)
+# CPM >= 1 in at least 50% of the samples
+keep.exp <- rowSums(cpm > 1) >= (0.5 * ncol(genes_counts_filt) )
+genes_counts5 <- genes_counts_filt[keep.exp, ] #15487 genes 
+#performing voom normalisation on data
+counts_voom <- limma::voom(genes_counts5)
+genes_counts_voom <- counts_voom$E
+#order metadata and genes counts
+
+genes_counts_ordered <- genes_counts_voom[,rownames(metadata_filt)]
+head(genes_counts_ordered)
+all(rownames(metadata_filt) == colnames (genes_counts_ordered)) #TRUE
+
+```
+
+
+```{r variance, echo = TRUE}
+# For categorical covariates you need to include the number 1. Example: (1|Status) + (1|Plate)
+#Based on Rsquared heatmap: highest correlation with PCs 
+names(metadata_filt) = tolower(names(metadata_filt))
+form <- ~ age + (1|donor_id) + picard_pct_ribosomal_bases + (1|tissue)  + picard_pct_mrna_bases + (1|sex)  + picard_percent_duplication + picard_pct_pf_reads_aligned 
+varPart_tx <- fitExtractVarPartModel(genes_counts_filt, form, metadata_filt)
+```
+
+```{r echo = FALSE}
+vp <- sortCols( varPart_tx )
+plotVarPart(vp)
+```
