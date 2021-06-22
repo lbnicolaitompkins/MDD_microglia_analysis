@@ -9,8 +9,9 @@ output: html_document
 
 library(variancePartition)
 library(edgeR)
+library(limma)
 library(ProjectTemplate)
-load.project()
+#load.project()
 
 knitr::opts_chunk$set( 
   warning=FALSE,
@@ -48,8 +49,8 @@ all(rownames(metadata_filt) == colnames (genes_counts_ordered)) #TRUE
 
 ```{r variance, echo = TRUE}
 names(metadata_filt) = tolower(names(metadata_filt))
-form <- ~ age + (1|donor_id) + picard_pct_ribosomal_bases + (1|tissue)  + picard_pct_mrna_bases + (1|sex)  + picard_percent_duplication + picard_pct_pf_reads_aligned 
-varPart_tx <- fitExtractVarPartModel(genes_counts_filt, form, metadata_filt)
+form <- ~ age + (1|donor_id) + picard_pct_ribosomal_bases + (1|tissue)  + picard_pct_mrna_bases + (1|sex)  + picard_percent_duplication + picard_pct_pf_reads_aligned
+varPart_tx <- fitExtractVarPartModel(genes_counts_ordered, form, metadata_filt)
 ```
 
 ```{r echo = FALSE}
