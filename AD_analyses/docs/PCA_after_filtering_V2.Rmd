@@ -1,0 +1,192 @@
+---
+title: "PCA_after_filtering_V2"
+author: "LB"
+date: "6/22/2021"
+output: html_document
+---
+
+```{r load.packages, echo=FALSE, message=FALSE, results='hide'}
+library(devtools)
+library(factoextra)
+library(ggfortify)
+library(ggplot2)
+library(dplyr)
+library(broom)
+library(variancePartition)
+library(pheatmap)
+library(edgeR)
+library(limma)
+library(DESeq2)
+library(Hmisc)
+library(matrixStats)
+library(readxl)
+library(ProjectTemplate)
+load.project()
+
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+```
+
+
+```{r directory}
+data_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data"
+project_dir <- "/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses"
+```
+
+```{r load_data, echo=TRUE, results = 'hide'}
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/gene_matrix.RData")
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/cache/metadata_filt.RData")
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/genes_counts_filt.rda")
+
+colnames(metadata_filt)[16] <- "Medication"
+
+#remove low count genes
+cpm <- cpm(genes_counts_filt) 
+# CPM >= 1 in at least 50% of the samples
+keep.exp <- rowSums(cpm > 1) >= (0.5 * ncol(genes_counts_filt) )
+genes_counts_filt1 <- genes_counts_filt[keep.exp, ] #15487 genes 
+#performing voom normalisation on data
+counts_voom <- limma::voom(genes_counts_filt1)
+genes_counts_voom <- counts_voom$E
+#order metadata and genes counts
+#rownames(metadata)
+#colnames(genes_counts_voom)
+
+genes_counts_ordered <- genes_counts_voom[,rownames(metadata_filt)]
+#head(genes_counts_ordered)
+all(rownames(metadata_filt) == colnames (genes_counts_ordered)) #TRUE
+```
+
+```{r, PCA all samples}
+pca <- prcomp(t(genes_counts_ordered), scale = TRUE, center = TRUE)
+plot(pca$x[,1], pca$x[,2])
+pca.var <- pca$sdev^2
+#calculate the percentage of variation that each PC accounts for
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
+barplot(pca.var.per[1:20], main = "Scree Plot", xlab = "Principal Componant", ylab = "Percent Variation")
+#PC1 accounts for 28.5% of the variation
+# create data frame with 1 column: sample IDs, 1 col x-coordinates, 1 col y-coordinates > 1 row per sample 
+pca.data <- data.frame(Sample=rownames(pca$x), 
+                       X=pca$x[,1],
+                       Y=pca$x[,2])
+
+ggplot(data = pca.data, aes(x=X, y=Y, label=Sample)) +
+  #geom_text() +
+  xlab(paste("PC1 - ", pca.var.per[1], "%", sep = "")) +
+  ylab(paste("PC2 - ", pca.var.per[2], "%", sep = "")) +
+  theme_bw() +
+  ggtitle("My PCA Graph")
+
+loading_scores <- pca$rotation[,1]
+gene_scores <- abs(loading_scores)
+gene_scores_ranked <- sort(gene_scores, decreasing = T)
+top_10_genes <- names(gene_scores_ranked[1:10])
+top_10_genes
+
+pca$rotation[top_10_genes,1]
+
+summary(gene_scores_ranked)
+```
+
+```{r PCA Scree plot ggplot2}
+var_explained_df <- data.frame(PC= paste0("PC",1:238), pca.var.per)
+
+var_20PC <- var_explained_df[1:20,]
+
+var_20PC%>%
+  ggplot(aes(x=reorder(PC, -pca.var.per),y=pca.var.per, label=pca.var.per) )+
+  geom_col()+
+  #geom_text(position = position_stack(vjust = 0.5))+
+  theme_bw()+
+  geom_label()+
+  labs(title="Scree plot: PCA on scaled data")
+
+```
+
+```{r PCA covariates, echo=TRUE, fig.width=12, fig.height=8, dpi=300}
+pca <- prcomp(t(genes_counts_ordered), scale. = TRUE, center = TRUE)
+autoplot(pca, data= metadata_filt, colour = 'Medication', shape = FALSE, label.size = 2)
+```
+# Heatmap with 20 PCS 
+
+```{r heatmap_all, echo=TRUE, fig.width=12, fig.height=8, dpi=300}
+#set metadata to no capitals
+names(metadata_filt) = tolower(names(metadata_filt))
+indx <- sapply(metadata, is.character)
+metadata[indx] <- lapply(metadata[indx], function(x) as.factor(x))
+
+#include covariates
+covariates = c( "donor_id",
+                "diagnosis",
+                "main_diagnosis",
+                "tissue",
+                "sex",
+                "age",
+                "pmd_minutes",
+                "ph",
+                "cause_of_death_categories",
+                "smoking",
+                "alcohol_dependence_daily_use",
+                "autoimmune_diseases",
+                "infection_2weeks",
+                "medication",
+                "antidepressant_90days",
+                "antidepressant_1",
+                "antidepressant_2",
+                "dose_mg", 
+                "dose2_mg", 
+                "antipsychotica_90days",
+                "antipsychotica_typical",
+                "antipsychotica_atypical",
+                "dose_typical",
+                "dose_atypical",
+                "narcotics_90days",
+                "benzo_90days",
+                "other",
+                "immuno",
+                "ad last year?",
+                "ad ever?",
+                "picard_pct_mrna_bases",
+                "picard_pct_ribosomal_bases",
+                "picard_pct_pf_reads_aligned",
+                "picard_summed_median",
+                "picard_summed_mean")
+
+#create format matrix 
+matrix_rsquared = matrix(NA, nrow = length(covariates), ncol = 20) #Number of factors
+matrix_pvalue = matrix(NA, nrow = length(covariates), ncol = 20)
+#lineair model function 
+for (x in 1:length(covariates)){
+  for (y in 1:20){
+    matrix_rsquared[x,y] <- summary( lm(pca$x[,y] ~ metadata_filt[,covariates[x]]) )$adj.r.squared
+    matrix_pvalue[x,y] <- tidy( lm(pca$x[,y] ~ metadata_filt[,covariates[x]]) )$p.value[2] #To insert pvalues in the heatmap
+  }
+}
+
+#fill matrix with values 
+matrix_rsquared <- as.data.frame(matrix_rsquared)
+matrix_pvalue <- as.data.frame(matrix_pvalue)
+rownames(matrix_rsquared) <- covariates
+names(matrix_rsquared) <- c(paste0("PC", 1:20))
+rownames(matrix_pvalue) <- covariates
+names(matrix_pvalue) <- c(paste0("PC", 1:20))
+
+#create heatmap with rsquared values 
+pheatmap(matrix_rsquared, main = "Correlation (Rsquared) between variables and first 20 PCs", legend = TRUE)
+```
+
+Attempt to create heatmap that includes p-values 
+```{r heatmap p values}
+matrix_pvalue <- as.matrix(matrix_pvalue)
+matrix_rsquared<- as.matrix(matrix_rsquared)
+
+corrs <- list(matrix_rsquared, matrix_pvalue)
+#HIER VERDER GAAN !!!!!!!!!!!!!! 
+
+```
