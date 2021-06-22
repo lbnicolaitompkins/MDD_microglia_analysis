@@ -21,7 +21,8 @@ library(Hmisc)
 library(matrixStats)
 library(readxl)
 library(ProjectTemplate)
-load.project()
+library(broomExtra)
+
 
 
 knitr::opts_chunk$set( 
@@ -63,7 +64,7 @@ genes_counts_ordered <- genes_counts_voom[,rownames(metadata_filt)]
 all(rownames(metadata_filt) == colnames (genes_counts_ordered)) #TRUE
 ```
 
-```{r, PCA all samples}
+```{r, PCA all samples, }
 pca <- prcomp(t(genes_counts_ordered), scale = TRUE, center = TRUE)
 plot(pca$x[,1], pca$x[,2])
 pca.var <- pca$sdev^2
@@ -118,8 +119,8 @@ autoplot(pca, data= metadata_filt, colour = 'Medication', shape = FALSE, label.s
 ```{r heatmap_all, echo=TRUE, fig.width=12, fig.height=8, dpi=300}
 #set metadata to no capitals
 names(metadata_filt) = tolower(names(metadata_filt))
-indx <- sapply(metadata, is.character)
-metadata[indx] <- lapply(metadata[indx], function(x) as.factor(x))
+indx <- sapply(metadata_filt, is.character)
+metadata_filt[indx] <- lapply(metadata_filt[indx], function(x) as.factor(x))
 
 #include covariates
 covariates = c( "donor_id",
@@ -161,7 +162,7 @@ covariates = c( "donor_id",
 #create format matrix 
 matrix_rsquared = matrix(NA, nrow = length(covariates), ncol = 20) #Number of factors
 matrix_pvalue = matrix(NA, nrow = length(covariates), ncol = 20)
-#lineair model function 
+#linear model function 
 for (x in 1:length(covariates)){
   for (y in 1:20){
     matrix_rsquared[x,y] <- summary( lm(pca$x[,y] ~ metadata_filt[,covariates[x]]) )$adj.r.squared
