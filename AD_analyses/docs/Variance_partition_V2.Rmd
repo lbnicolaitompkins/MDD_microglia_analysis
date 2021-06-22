@@ -1,0 +1,58 @@
+---
+title: "Variance_partitionV2"
+author: "LB"
+date: "6/22/2021"
+output: html_document
+---
+
+```{r setup, echo=FALSE, message=FALSE, results='hide'}
+
+library(variancePartition)
+library(edgeR)
+library(ProjectTemplate)
+load.project()
+
+knitr::opts_chunk$set( 
+  warning=FALSE,
+  message=FALSE,
+  results = 'asis',
+  error = FALSE,
+  tidy = FALSE,
+  fig.show = "hold")
+
+```
+
+```{r load_data, echo=TRUE, results = 'hide'}
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/gene_matrix.RData")
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/cache/metadata_filt.RData")
+load("/Volumes/Samsung_T5/MiG_data/MDD_microglia_analysis/MDD_microglia_analysis/AD_analyses/data/genes_counts_filt.rda")
+
+colnames(metadata_filt)[16] <- "Medication"
+
+#remove low count genes
+cpm <- cpm(genes_counts_filt) 
+# CPM >= 1 in at least 50% of the samples
+keep.exp <- rowSums(cpm > 1) >= (0.5 * ncol(genes_counts_filt) )
+genes_counts_filt1 <- genes_counts_filt[keep.exp, ] #15487 genes 
+#performing voom normalisation on data
+counts_voom <- limma::voom(genes_counts_filt1)
+genes_counts_voom <- counts_voom$E
+#order metadata and genes counts
+#rownames(metadata)
+#colnames(genes_counts_voom)
+
+genes_counts_ordered <- genes_counts_voom[,rownames(metadata_filt)]
+#head(genes_counts_ordered)
+all(rownames(metadata_filt) == colnames (genes_counts_ordered)) #TRUE
+```
+
+```{r variance, echo = TRUE}
+names(metadata_filt) = tolower(names(metadata_filt))
+form <- ~ age + (1|donor_id) + picard_pct_ribosomal_bases + (1|tissue)  + picard_pct_mrna_bases + (1|sex)  + picard_percent_duplication + picard_pct_pf_reads_aligned 
+varPart_tx <- fitExtractVarPartModel(genes_counts_filt, form, metadata_filt)
+```
+
+```{r echo = FALSE}
+vp <- sortCols( varPart_tx )
+plotVarPart(vp)
+```
